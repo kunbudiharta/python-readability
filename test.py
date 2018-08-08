@@ -16,14 +16,19 @@ def cleaning_text(text):
     return text
 
 
-response = requests.get('https://nasional.kompas.com/read/2018/08/08/14553351/maruf-amin-sambangi-istana-ada-apa')
+response = requests.get('https://www.medcom.id/olahraga/sports-lainnya/GKdWa2dk-dua-emas-jadi-target-timnas-bridge-di-asian-games-2018?utm_source=all&utm_medium=allfeed&utm_campaign=allpartnership')
 
 negative_keywords = [
-    "sum", "strong", "credits"
+    "sum",
+    "strong",
+    "credits",
+    "header"
 ]
 
 positive_keywords = [
-    "detail", "page"
+    "detail",
+    "page",
+    "content-article"
 ]
 
 unlikely_candidates = [
@@ -32,7 +37,9 @@ unlikely_candidates = [
     "baca",
     "juga",
     "video",
-    "inner-link-baca-juga"
+    "inner-link-baca-juga",
+    "iframe",
+    "caption"
 ]
 
 p_exclude = [
@@ -49,28 +56,36 @@ p_exclude = [
     'tags',
     'sumber:',
     'penulis:',
-    'pewarta:'
+    'pewarta:',
+    'followinstagramkami'
 ]
 
 p_exclude = readability.compile_pattern(p_exclude)
 
-doc = readability.Document(response.text,
-               negative_keywords=negative_keywords,
-               positive_keywords=positive_keywords,
-               unlikely_candidates=unlikely_candidates
+doc = readability.Document(
+    response.text,
+    negative_keywords=negative_keywords,
+    positive_keywords=positive_keywords,
+    unlikely_candidates=unlikely_candidates
 )
 
 soup = BeautifulSoup(doc.summary(), "html5lib")
 content = []
-
+all_p = []
 for p in soup.select("p"):
-    text = cleaning(p.get_text())
-    if len(text) > 0:
+    text_p = cleaning(p.get_text())
+    if text_p.find("\n") > 0:
+        all_p.extend(text_p.split("\n"))
+    else:
+        all_p.append(text_p)
+
+for text_p in all_p:
+    if len(text_p) > 0:
         try:
-            if not p_exclude.search(text.lower().replace(" ", "")):
-                content.append(text)
+            if not p_exclude.search(text_p.lower().replace(" ", "")):
+                content.append(text_p)
         except Exception:
-            content.append(text)
+            content.append(text_p)
 
 content = "\n\n".join(content)
 result = {
