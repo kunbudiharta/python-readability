@@ -23,16 +23,16 @@ from .debug import describe, text_content
 log = logging.getLogger("readability.readability")
 
 REGEXES = {
-    'unlikelyCandidatesRe': re.compile('combx|comment|community|disqus|extra|foot|header|menu|remark|rss|shoutbox|sidebar|sponsor|ad-break|agegate|pagination|pager|popup|tweet|twitter', re.I),
+    'unlikelyCandidatesRe': re.compile('-ad-|banner|breadcrumbs|combx|comment|community|cover-wrap|disqus|extra|foot|header|legends|menu|related|remark|replies|rss|shoutbox|sidebar|skyscraper|social|sponsor|supplemental|ad-break|agegate|pagination|pager|popup|yom-remote', re.I),
     'okMaybeItsACandidateRe': re.compile('and|article|body|column|main|shadow', re.I),
     'positiveRe': re.compile('article|body|content|entry|hentry|main|page|pagination|post|text|blog|story', re.I),
-    'negativeRe': re.compile('combx|comment|com-|contact|foot|footer|footnote|masthead|media|meta|outbrain|promo|related|scroll|shoutbox|sidebar|sponsor|shopping|tags|tool|widget', re.I),
+    'negativeRe': re.compile('hidden|^hid$| hid$| hid |^hid |banner|combx|comment|com-|contact|foot|footer|footnote|masthead|media|meta|outbrain|promo|related|scroll|share|shoutbox|sidebar|skyscraper|sponsor|shopping|tags|tool|widget', re.I),
     'divToPElementsRe': re.compile('<(a|blockquote|dl|div|img|ol|p|pre|table|ul)', re.I),
-    #'replaceBrsRe': re.compile('(<br[^>]*>[ \n\r\t]*){2,}',re.I),
-    #'replaceFontsRe': re.compile('<(\/?)font[^>]*>',re.I),
-    #'trimRe': re.compile('^\s+|\s+$/'),
-    #'normalizeRe': re.compile('\s{2,}/'),
-    #'killBreaksRe': re.compile('(<br\s*\/?>(\s|&nbsp;?)*){1,}/'),
+    'replaceBrsRe': re.compile('(<br[^>]*>[ \n\r\t]*){2,}',re.I),
+    'replaceFontsRe': re.compile('<(\/?)font[^>]*>',re.I),
+    'trimRe': re.compile('^\s+|\s+$/'),
+    'normalizeRe': re.compile('\s{2,}/'),
+    'killBreaksRe': re.compile('(<br\s*\/?>(\s|&nbsp;?)*){1,}/'),
     'videoRe': re.compile('https?:\/\/(www\.)?(youtube|vimeo)\.com', re.I),
     #skipFootnoteLink:      /^\s*(\[?[a-z0-9]{1,2}\]?|^|edit|citation needed)\s*$/i,
 }
@@ -83,7 +83,7 @@ class Document:
     """Class to build a etree document out of html."""
 
     def __init__(self, input, positive_keywords=None, negative_keywords=None,
-                 url=None, min_text_length=25, retry_length=250, xpath=False):
+                 url=None, min_text_length=25, retry_length=250, xpath=False, unlikely_candidates=None):
         """Generate the document
 
         :param input: string of the html content.
@@ -115,6 +115,7 @@ class Document:
         self.encoding = None
         self.positive_keywords = compile_pattern(positive_keywords)
         self.negative_keywords = compile_pattern(negative_keywords)
+        self.unlikely_candidates = compile_pattern(unlikely_candidates)
         self.url = url
         self.min_text_length = min_text_length
         self.retry_length = retry_length
@@ -407,6 +408,13 @@ class Document:
             if REGEXES['unlikelyCandidatesRe'].search(s) and (not REGEXES['okMaybeItsACandidateRe'].search(s)) and elem.tag not in ['html', 'body']:
                 log.debug("Removing unlikely candidate - %s" % describe(elem))
                 elem.drop_tree()
+
+            if self.unlikely_candidates and self.unlikely_candidates.search(s) and elem.tag not in ['html', 'body']:
+                log.debug("Removing unlikely candidate - %s" % describe(elem))
+                try:
+                    elem.drop_tree()
+                except:
+                    pass
 
     def transform_misused_divs_into_paragraphs(self):
         for elem in self.tags(self.html, 'div'):
