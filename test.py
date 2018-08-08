@@ -1,10 +1,18 @@
 import requests
-from readability import Document
+import readability
 from bs4 import BeautifulSoup
+from textacy.preprocess import preprocess_text
+import json
 
 
 def cleaning(text):
-    text = text.replace("\n", "").replace("\r", "").replace("\t", "").strip()
+    text = preprocess_text(text, fix_unicode=True)
+    return text
+
+
+def cleaning_text(text):
+    text = preprocess_text(text, no_numbers=True, fix_unicode=True, lowercase=True, no_punct=True)
+    text = " ".join(text.replace("number", "").split())
     return text
 
 
@@ -27,8 +35,26 @@ unlikely_candidates = [
     "inner-link-baca-juga"
 ]
 
+p_exclude = [
+    'saksikantayanganvideomenarikberikutini:',
+    'simakvideomenarikberikutdibawah:',
+    'simakjugavideoberikutini:',
+    'bacaselengkapnya:',
+    'bacajuga',
+    'baca:',
+    'videopilihan',
+    'laporanwartawan',
+    'editor:',
+    'copyright',
+    'tags',
+    'sumber:',
+    'penulis:',
+    'pewarta:'
+]
 
-doc = Document(response.text,
+p_exclude = readability.compile_pattern(p_exclude)
+
+doc = readability.Document(response.text,
                negative_keywords=negative_keywords,
                positive_keywords=positive_keywords,
                unlikely_candidates=unlikely_candidates
@@ -38,6 +64,19 @@ soup = BeautifulSoup(doc.summary(), "html5lib")
 content = []
 
 for p in soup.select("p"):
-    content.append(cleaning(p.get_text()))
+    text = cleaning(p.get_text())
+    if len(text) > 0:
+        try:
+            if not p_exclude.search(text.lower().replace(" ", "")):
+                content.append(text)
+        except Exception:
+            content.append(text)
 
-print(content)
+content = "\n\n".join(content)
+result = {
+    "title": doc.title(),
+    "short_title": doc.short_title(),
+    "content": content,
+    "content_lower": cleaning_text(content)
+}
+print(json.dumps(result))
